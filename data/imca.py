@@ -245,7 +245,7 @@ def gen_nonstationary_data(Ncomp, Nlayer, Nsegment, NsegmentObs, source='Laplace
 
 
 def gen_IMCA_data(Ncomp, Nlayer, Nsegment, NsegmentObs, BaseCovariance, NonLin='leaky', negSlope=.2,
-                  Niter4condThresh=1e4, seed=1, varyMean=False):
+                  Niter4condThresh=1e4, seed=1, varyMean=False, use_sem=False, chain=False):
     """
     generate data from an IMCA model where latent sources follow a
     MoG distribution conditional on each segment
@@ -300,18 +300,37 @@ def gen_IMCA_data(Ncomp, Nlayer, Nsegment, NsegmentObs, BaseCovariance, NonLin='
     # now we apply layers of non-linearity (just one for now!). Note the order will depend on natural of nonlinearity!
     # (either additive or more general!)
     mixingList = []
-    for l in range(Nlayer - 1):
-        # generate causal matrix first:
-        A = ortho_group.rvs(Ncomp)  # generateUniformMat( Ncomp, condThresh )
+    if Nlayer == 1 and use_sem:
+        A = np.tril(ortho_group.rvs(Ncomp)).T
+
+        if chain:
+            A = np.tril(A, k=1)
+
         mixingList.append(A)
+        print("using SEM")
+        print(f"{A=}")
 
         # we first apply non-linear function, then causal matrix!
         if NonLin == 'leaky':
             mixedDat = leaky_ReLU(mixedDat, negSlope)
         elif NonLin == 'sigmoid':
             mixedDat = sigmoidAct(mixedDat)
-        # apply mixing:
+
         mixedDat = np.dot(mixedDat, A)
+
+    else:
+        for l in range(Nlayer - 1):
+            # generate causal matrix first:
+            A = ortho_group.rvs(Ncomp)  # generateUniformMat( Ncomp, condThresh )
+            mixingList.append(A)
+
+            # we first apply non-linear function, then causal matrix!
+            if NonLin == 'leaky':
+                mixedDat = leaky_ReLU(mixedDat, negSlope)
+            elif NonLin == 'sigmoid':
+                mixedDat = sigmoidAct(mixedDat)
+            # apply mixing:
+            mixedDat = np.dot(mixedDat, A)
 
     return {'source': latents, 'obs': mixedDat, 'labels': labels, 'mixing': mixingList, 'var': modMat,
             'BaseCovariance': BaseCovariance}
@@ -391,6 +410,12 @@ def gen_TCL_data_ortho(Ncomp, Nlayer, Nsegment, NsegmentObs, source='Laplace', N
         print("using SEM")
         print(f"{A=}")
 
+        # we first apply non-linear function, then causal matrix!
+        if NonLin == 'leaky':
+            mixedDat = leaky_ReLU(mixedDat, negSlope)
+        elif NonLin == 'sigmoid':
+            mixedDat = sigmoidAct(mixedDat)
+
         mixedDat = np.dot(mixedDat, A)
 
     else:
@@ -423,7 +448,7 @@ def generate_synthetic_data(data_dim, data_segments, n_obs_seg, n_layer, simulat
         baseCov = random_correlation.rvs(baseEvals)
 
         dat_all = gen_IMCA_data(Ncomp=data_dim, Nsegment=data_segments, Nlayer=n_layer, NsegmentObs=n_obs_seg,
-                                NonLin='leaky', negSlope=.2, BaseCovariance=baseCov, seed=seed)
+                                NonLin='leaky', negSlope=.2, BaseCovariance=baseCov, seed=seed, use_sem=use_sem, chain=chain)
     else:
         raise ValueError('invalid simulation method: {}'.format(simulationMethod))
     x = dat_all['obs']
