@@ -5,7 +5,7 @@ import pickle
 import torch
 import yaml
 
-from runners.simulation_runner import run_icebeem_exp, run_ivae_exp, run_tcl_exp
+from runners.simulation_runner import run_icebeem_exp, run_ivae_exp
 
 
 def parse_sim():
@@ -49,12 +49,13 @@ if __name__ == '__main__':
     if not args.plot:
         if args.dataset.lower() in ['tcl', 'imca']:
             with open(os.path.join('configs', args.config), 'r') as f:
-                config = yaml.load(f)
+                config = yaml.load(f,Loader=yaml.FullLoader)
             new_config = dict2namespace(config)
             new_config.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
             if args.method.lower() == 'tcl':
-                r = run_tcl_exp(args, new_config)
+                # r = run_tcl_exp(args, new_config)
+                pass
             elif args.method.lower() == 'ivae':
                 r = run_ivae_exp(args, new_config)
             elif args.method.lower() in ['ice-beem', 'icebeem']:
