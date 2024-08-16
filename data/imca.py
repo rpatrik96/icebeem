@@ -318,7 +318,7 @@ def gen_IMCA_data(Ncomp, Nlayer, Nsegment, NsegmentObs, BaseCovariance, NonLin='
 
 
 def gen_TCL_data_ortho(Ncomp, Nlayer, Nsegment, NsegmentObs, source='Laplace', NonLin='leaky', negSlope=.2,
-                       varyMean=False, Niter4condThresh=1e4, seed=1):
+                       varyMean=False, Niter4condThresh=1e4, seed=1, use_sem=False, chain=False):
     """
     generate multivariate data based on the non-stationary non-linear ICA model of Hyvarinen & Morioka (2016)
 
@@ -379,29 +379,44 @@ def gen_TCL_data_ortho(Ncomp, Nlayer, Nsegment, NsegmentObs, source='Laplace', N
     # generate mixing matrices:
     # now we apply layers of non-linearity (just one for now!). Note the order will depend on natural of nonlinearity!
     # (either additive or more general!)
-    mixingList = []
-    for l in range(Nlayer - 1):
-        # generate causal matrix first:
-        A = ortho_group.rvs(Ncomp)  # generateUniformMat( Ncomp, condThresh )
-        mixingList.append(A)
 
-        # we first apply non-linear function, then causal matrix!
-        if NonLin == 'leaky':
-            mixedDat = leaky_ReLU(mixedDat, negSlope)
-        elif NonLin == 'sigmoid':
-            mixedDat = sigmoidAct(mixedDat)
-        # apply mixing:
+    mixingList = []
+    if Nlayer==1 and use_sem:
+        A = np.tril(ortho_group.rvs(Ncomp)).T
+
+        if chain:
+            A = np.tril(A, k=1)
+
+        mixingList.append(A)
+        print("using SEM")
+        print(f"{A=}")
+
         mixedDat = np.dot(mixedDat, A)
+
+    else:
+        for l in range(Nlayer - 1):
+            # generate causal matrix first:
+            A = ortho_group.rvs(Ncomp)  # generateUniformMat( Ncomp, condThresh )
+            mixingList.append(A)
+
+            # we first apply non-linear function, then causal matrix!
+            if NonLin == 'leaky':
+                mixedDat = leaky_ReLU(mixedDat, negSlope)
+            elif NonLin == 'sigmoid':
+                mixedDat = sigmoidAct(mixedDat)
+            # apply mixing:
+            mixedDat = np.dot(mixedDat, A)
 
     return {'source': dat, 'obs': mixedDat, 'labels': labels, 'mixing': mixingList, 'var': modMat}
 
 
 def generate_synthetic_data(data_dim, data_segments, n_obs_seg, n_layer, simulationMethod='TCL', seed=1,
-                            one_hot_labels=False, varyMean=False):
+                            one_hot_labels=False, varyMean=False,use_sem=False, chain=False):
     np.random.seed(seed)
     if simulationMethod.lower() == 'tcl':
         dat_all = gen_TCL_data_ortho(Ncomp=data_dim, Nsegment=data_segments, Nlayer=n_layer, NsegmentObs=n_obs_seg,
-                                     source='Gaussian', NonLin='leaky', negSlope=.2, seed=seed, varyMean=varyMean)
+                                     source='Gaussian', NonLin='leaky', negSlope=.2, seed=seed, varyMean=varyMean,
+                                     use_sem=use_sem, chain=chain)
     elif simulationMethod.lower() == 'imca':
         baseEvals = np.random.rand(data_dim)
         baseEvals /= ((1. / data_dim) * baseEvals.sum())

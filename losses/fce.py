@@ -15,9 +15,9 @@ from torch.utils.data import DataLoader
 from data.imca import ContrastiveConditionalDataset, SimpleDataset
 from data.utils import to_one_hot
 
-torch.set_default_tensor_type('torch.cuda.FloatTensor')
+# torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-
+from strnn import StrNN
 class ConditionalFCE(object):
     """
     train an energy based model using noise contrastive estimation
@@ -31,7 +31,10 @@ class ConditionalFCE(object):
         self.contrastSegments = (np.ones(self.segments.shape) / self.segments.shape[1]).astype(np.float32)
         self.energy_MLP = energy_MLP
         self.ebm_norm = -5.
-        self.hidden_dim = self.energy_MLP.linearLast.weight.shape[0]
+        if isinstance(energy_MLP, StrNN):
+            self.hidden_dim = energy_MLP.nout
+        else:
+            self.hidden_dim = self.energy_MLP.linearLast.weight.shape[0]
         self.n_segments = self.segments.shape[1]
         self.ebm_finalLayer = torch.tensor(np.ones((self.hidden_dim, self.n_segments)).astype(np.float32))
         # self.ebm_finalLayer = torch.tensor( np.random.random(( self.hidden_dim, self.n_segments )).astype(np.float32) )

@@ -12,16 +12,44 @@ from .nets import MLP
 from .nflib.flows import NormalizingFlowModel, Invertible1x1Conv, ActNorm
 from .nflib.spline_flows import NSF_AR
 
+from strnn import StrNN
+
 
 def ICEBEEM_wrapper(X, Y, ebm_hidden_size, n_layers_ebm, n_layers_flow, lr_flow, lr_ebm, seed,
-                    ckpt_file='icebeem.pt', test=False):
+                    ckpt_file='icebeem.pt', test=False, use_strnn=False, use_chain=False):
     np.random.seed(seed)
     torch.manual_seed(seed)
     data_dim = X.shape[1]
 
-    model_ebm = MLP(input_size=data_dim, hidden_size=[ebm_hidden_size] * n_layers_ebm,
-                    n_layers=n_layers_ebm, output_size=data_dim, use_bn=True,
-                    activation_function=F.leaky_relu)
+    if use_strnn is False:
+        model_ebm = MLP(input_size=data_dim, hidden_size=[ebm_hidden_size] * n_layers_ebm,
+                        n_layers=n_layers_ebm, output_size=data_dim, use_bn=True,
+                        activation_function=F.leaky_relu)
+    else:
+        print('Using StrNN')
+        adjacency = torch.tril(
+            torch.ones(data_dim,
+                       data_dim)
+        ).numpy()
+
+        # make it a chain
+        if use_chain:
+            adjacency = np.tril(adjacency.T, k=1).T
+
+        hidden_sizes = [
+            ebm_hidden_size for _ in range(n_layers_ebm)
+        ]
+
+        model_ebm = StrNN(
+                        nin=data_dim,
+                        hidden_sizes=(tuple(hidden_sizes)),
+                        nout=data_dim ,
+                        opt_type="greedy",
+                        adjacency=adjacency,
+                        activation="leaky_relu",
+                        init_type="ian_uniform",
+                        norm_type="batch",
+                    )
 
     prior = TransformedDistribution(Uniform(torch.zeros(data_dim), torch.ones(data_dim)),
                                     SigmoidTransform().inv)
