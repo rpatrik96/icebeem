@@ -16,7 +16,7 @@ def parse_sim():
                         help='Method to employ. Should be TCL, iVAE or ICE-BeeM')
     parser.add_argument('--config', type=str, default='imca.yaml', help='Path to the config file')
     parser.add_argument('--run', type=str, default='run/', help='Path for saving running related data.')
-    parser.add_argument('--nSims', type=int, default=3, help='Number of simulations to run')
+    parser.add_argument('--nSims', type=int, default=1, help='Number of simulations to run')
 
     parser.add_argument('--test', action='store_true', help='Whether to evaluate the models from checkpoints')
     parser.add_argument('--plot', action='store_true')
