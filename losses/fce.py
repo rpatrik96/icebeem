@@ -18,6 +18,10 @@ from data.utils import to_one_hot
 # torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 from strnn import StrNN
+
+import wandb
+
+
 class ConditionalFCE(object):
     """
     train an energy based model using noise contrastive estimation
@@ -162,6 +166,10 @@ class ConditionalFCE(object):
                 self.energy_MLP.zero_grad()
 
                 optimizer.zero_grad()
+
+
+                if wandb.run is not None:
+                    wandb.log({"train_loss": loss.item(), "train_accuracy": np.round(num_correct / (2 * n), 3)})
 
                 # compute gradients
                 loss.backward()
