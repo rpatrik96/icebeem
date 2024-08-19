@@ -97,13 +97,16 @@ def run_icebeem_exp(args, config):
                                               simulationMethod=dataset, one_hot_labels=True, use_sem=use_sem, chain=chain)
             for seed in range(nSims):
                 if nSims ==1:
-                    seed = config.seed
+                    try:
+                        seed = wandb.config.seed
+                    except:
+                        seed = config.data_seed
                 print('Running exp with L={} and n={}; seed={}'.format(l, n, seed))
                 # generate data
 
                 n_layers_ebm = l + 1
                 ckpt_file = os.path.join(args.checkpoints, 'icebeem_{}_l{}_n{}_s{}.pt'.format(dataset, l, n, seed))
-                recov_sources = ICEBEEM_wrapper(X=x, Y=y, ebm_hidden_size=ebm_hidden_size,
+                recov_sources = ICEBEEM_wrapper(X=x, Y=y, S=s, ebm_hidden_size=ebm_hidden_size,
                                                 n_layers_ebm=n_layers_ebm, n_layers_flow=n_layers_flow,
                                                 lr_flow=lr_flow, lr_ebm=lr_ebm, seed=seed, ckpt_file=ckpt_file,
                                                 test=test,use_strnn=use_strnn,use_chain=chain)
@@ -112,8 +115,6 @@ def run_icebeem_exp(args, config):
                 results[l][n].append(np.max([mean_corr_coef(z, s) for z in recov_sources]))
                 print(f"MCC={(mcc:=np.max([mean_corr_coef(z, s) for z in recov_sources]))}")
 
-                if wandb.run is not None:
-                    wandb.log({'train_mcc': mcc})
 
     # prepare output
     Results = {

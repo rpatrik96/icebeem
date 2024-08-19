@@ -12,8 +12,11 @@ from torch import nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
+from sklearn.decomposition import FastICA
+
 from data.imca import ContrastiveConditionalDataset, SimpleDataset
 from data.utils import to_one_hot
+from metrics.mcc import mean_corr_coef
 
 # torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
@@ -29,9 +32,10 @@ class ConditionalFCE(object):
     this is useful for nonlinear ICA and semi supervised learning !
     """
 
-    def __init__(self, data, segments, energy_MLP, flow_model, verbose=False):
+    def __init__(self, data, segments, sources, energy_MLP, flow_model, verbose=False):
         self.data = data
         self.segments = segments
+        self.sources = sources
         self.contrastSegments = (np.ones(self.segments.shape) / self.segments.shape[1]).astype(np.float32)
         self.energy_MLP = energy_MLP
         self.ebm_norm = -5.
@@ -168,9 +172,6 @@ class ConditionalFCE(object):
                 optimizer.zero_grad()
 
 
-                if wandb.run is not None:
-                    wandb.log({"train_loss": loss.item(), "train_accuracy": np.round(num_correct / (2 * n), 3)})
-
                 # compute gradients
                 loss.backward()
 
@@ -178,6 +179,21 @@ class ConditionalFCE(object):
                 optimizer.step()
 
             # print some statistics
+
+            if wandb.run is not None:
+
+
+                loss_key = "train_loss_final_layer" if finalLayerOnly is True else "train_loss"
+                accuracy_key = "train_accuracy_final_layer" if finalLayerOnly is True else "train_accuracy"
+                mcc_key = "train_mcc_final_layer" if finalLayerOnly is True else "train_mcc"
+
+                wandb.log({loss_key: loss_val, accuracy_key: np.round(num_correct / (2 * n), 3)})
+
+
+                recov = self.unmixSamples(self.data, modelChoice='ebm')
+                source_est_ica = FastICA().fit_transform((recov))
+                wandb.log({mcc_key: mean_corr_coef(source_est_ica, self.sources)})
+
             if self.verbose:
                 print('epoch {} \tloss: {}\taccuracy: {}'.format(e, np.round(loss_val, 4),
                                                                  np.round(num_correct / (2 * n), 3)))

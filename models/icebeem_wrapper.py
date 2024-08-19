@@ -15,7 +15,7 @@ from .nflib.spline_flows import NSF_AR
 from strnn import StrNN
 
 
-def ICEBEEM_wrapper(X, Y, ebm_hidden_size, n_layers_ebm, n_layers_flow, lr_flow, lr_ebm, seed,
+def ICEBEEM_wrapper(X, Y, S, ebm_hidden_size, n_layers_ebm, n_layers_flow, lr_flow, lr_ebm, seed,
                     ckpt_file='icebeem.pt', test=False, use_strnn=False, use_chain=False):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -65,7 +65,7 @@ def ICEBEEM_wrapper(X, Y, ebm_hidden_size, n_layers_ebm, n_layers_flow, lr_flow,
     augment_ebm = True
 
     # instantiate ebmFCE object
-    fce_ = ConditionalFCE(data=X.astype(np.float32), segments=Y.astype(np.float32),
+    fce_ = ConditionalFCE(data=X.astype(np.float32), sources=S.astype(np.float32), segments=Y.astype(np.float32),
                           energy_MLP=model_ebm, flow_model=model_flow, verbose=False)
 
     init_ckpt_file = os.path.splitext(ckpt_file)[0] + '_0' + os.path.splitext(ckpt_file)[1]
