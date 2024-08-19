@@ -45,10 +45,13 @@ def make_dirs_simulations(args):
     os.makedirs(args.checkpoints, exist_ok=True)
 
 def run_experiments():
+    global config
 
     if args.sweep is not None:
         run = wandb.init()
         config=wandb.config
+
+
 
     if args.method.lower() == 'tcl':
         # r = run_tcl_exp(args, new_config)
@@ -85,10 +88,12 @@ if __name__ == '__main__':
 
                 wandb.agent(args.sweep, function=run_experiments, project="icebeem")
             else:
+
                 with open(os.path.join('configs', args.config), 'r') as f:
                     config = yaml.load(f, Loader=yaml.FullLoader)
                 config = dict2namespace(config)
                 config.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
                 run_experiments()
         else:
             raise ValueError('Unsupported dataset {}'.format(args.dataset))

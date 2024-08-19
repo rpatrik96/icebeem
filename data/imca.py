@@ -300,23 +300,52 @@ def gen_IMCA_data(Ncomp, Nlayer, Nsegment, NsegmentObs, BaseCovariance, NonLin='
     # now we apply layers of non-linearity (just one for now!). Note the order will depend on natural of nonlinearity!
     # (either additive or more general!)
     mixingList = []
-    if Nlayer == 1 and use_sem:
-        A = np.tril(ortho_group.rvs(Ncomp)).T
+    if use_sem:
 
-        if chain:
-            A = np.tril(A, k=1)
+        if Nlayer ==1:
+            A = np.tril(ortho_group.rvs(Ncomp)).T
 
-        mixingList.append(A)
-        print("using SEM")
-        print(f"{A=}")
+            if chain:
+                A = np.tril(A, k=1)
 
-        # we first apply non-linear function, then causal matrix!
-        if NonLin == 'leaky':
-            mixedDat = leaky_ReLU(mixedDat, negSlope)
-        elif NonLin == 'sigmoid':
-            mixedDat = sigmoidAct(mixedDat)
+            mixingList.append(A)
+            print("using SEM")
+            print(f"{A=}")
 
-        mixedDat = np.dot(mixedDat, A)
+            # we first apply non-linear function, then causal matrix!
+            if NonLin == 'leaky':
+                mixedDat = leaky_ReLU(mixedDat, negSlope)
+            elif NonLin == 'sigmoid':
+                mixedDat = sigmoidAct(mixedDat)
+
+            mixedDat = np.dot(mixedDat, A)
+
+        else:
+            from strnn import StrNN
+
+            adjacency = torch.tril(
+                torch.ones(Ncomp,
+                            Ncomp)
+            ).numpy()
+
+            # make it a chain
+            if chain:
+                adjacency = np.tril(adjacency.T, k=1).T
+
+            sem = StrNN(
+                nin=Ncomp,
+                hidden_sizes=(tuple([
+                    10 * Ncomp for _ in range(Nlayer)
+                ])),
+                nout=Ncomp,
+                opt_type="greedy",
+                adjacency=adjacency,
+                activation="leaky_relu",
+                init_type="ian_uniform",
+                norm_type="batch",
+            )
+
+            mixedDat = sem(torch.from_numpy(mixedDat).float()).detach().numpy()
 
     else:
         for l in range(Nlayer - 1):
@@ -400,23 +429,49 @@ def gen_TCL_data_ortho(Ncomp, Nlayer, Nsegment, NsegmentObs, source='Laplace', N
     # (either additive or more general!)
 
     mixingList = []
-    if Nlayer==1 and use_sem:
-        A = np.tril(ortho_group.rvs(Ncomp)).T
+    if use_sem is True:
 
-        if chain:
-            A = np.tril(A, k=1)
+        if Nlayer == 1:
+            A = np.tril(ortho_group.rvs(Ncomp)).T
 
-        mixingList.append(A)
-        print("using SEM")
-        print(f"{A=}")
+            if chain:
+                A = np.tril(A, k=1)
 
-        # we first apply non-linear function, then causal matrix!
-        if NonLin == 'leaky':
-            mixedDat = leaky_ReLU(mixedDat, negSlope)
-        elif NonLin == 'sigmoid':
-            mixedDat = sigmoidAct(mixedDat)
+            mixingList.append(A)
 
-        mixedDat = np.dot(mixedDat, A)
+            # we first apply non-linear function, then causal matrix!
+            if NonLin == 'leaky':
+                mixedDat = leaky_ReLU(mixedDat, negSlope)
+            elif NonLin == 'sigmoid':
+                mixedDat = sigmoidAct(mixedDat)
+
+            mixedDat = np.dot(mixedDat, A)
+        else:
+            from strnn import StrNN
+
+            adjacency = torch.tril(
+                torch.ones(Ncomp,
+                           Ncomp)
+            ).numpy()
+
+            # make it a chain
+            if chain:
+                adjacency = np.tril(adjacency.T, k=1).T
+
+            sem = StrNN(
+                nin=Ncomp,
+                hidden_sizes=(tuple([
+                    10*Ncomp for _ in range(Nlayer)
+                ])),
+                nout=Ncomp,
+                opt_type="greedy",
+                adjacency=adjacency,
+                activation="leaky_relu",
+                init_type="ian_uniform",
+                norm_type="batch",
+            )
+
+            mixedDat = sem(torch.from_numpy(mixedDat).float()).detach().numpy()
 
     else:
         for l in range(Nlayer - 1):
