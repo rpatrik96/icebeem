@@ -8,6 +8,7 @@ from metrics.mcc import mean_corr_coef
 from models.icebeem_wrapper import ICEBEEM_wrapper
 from models.ivae.ivae_wrapper import IVAE_wrapper
 # from models.tcl.tcl_wrapper_gpu import TCL_wrapper
+import wandb
 
 
 def run_ivae_exp(args, config):
@@ -66,11 +67,23 @@ def run_icebeem_exp(args, config):
     use_sem = config.use_sem
     chain=config.chain
 
-    lr_flow = config.icebeem.lr_flow
-    lr_ebm = config.icebeem.lr_ebm
-    n_layers_flow = config.icebeem.n_layers_flow
-    ebm_hidden_size = config.icebeem.ebm_hidden_size
-    use_strnn = config.icebeem.use_strnn
+    try:
+        lr_flow = config.icebeem.lr_flow
+        lr_ebm = config.icebeem.lr_ebm
+        n_layers_flow = config.icebeem.n_layers_flow
+        ebm_hidden_size = config.icebeem.ebm_hidden_size
+        use_strnn = config.icebeem.use_strnn
+    except:
+        lr_flow = config.lr_flow
+        lr_ebm = config.lr_ebm
+        n_layers_flow = config.n_layers_flow
+        ebm_hidden_size = config.ebm_hidden_size
+        use_strnn = config.use_strnn
+
+    if not isinstance(n_layers, list):
+        n_layers = [n_layers]
+    if not isinstance(n_obs_per_seg, list):
+        n_obs_per_seg = [n_obs_per_seg]
 
     results = {l: {n: [] for n in n_obs_per_seg} for l in n_layers}
 
@@ -83,6 +96,8 @@ def run_icebeem_exp(args, config):
             x, y, s = generate_synthetic_data(data_dim, n_segments, n, l, seed=data_seed,
                                               simulationMethod=dataset, one_hot_labels=True, use_sem=use_sem, chain=chain)
             for seed in range(nSims):
+                if nSims ==1:
+                    seed = config.seed
                 print('Running exp with L={} and n={}; seed={}'.format(l, n, seed))
                 # generate data
 
@@ -95,7 +110,10 @@ def run_icebeem_exp(args, config):
 
                 # store results
                 results[l][n].append(np.max([mean_corr_coef(z, s) for z in recov_sources]))
-                print(f"MCC={np.max([mean_corr_coef(z, s) for z in recov_sources])}")
+                print(f"MCC={(mcc:=np.max([mean_corr_coef(z, s) for z in recov_sources]))}")
+
+                if wandb.run is not None:
+                    wandb.log({'train_mcc': mcc})
 
     # prepare output
     Results = {

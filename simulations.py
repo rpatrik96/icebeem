@@ -4,6 +4,7 @@ import pickle
 
 import torch
 import yaml
+import wandb
 
 from runners.simulation_runner import run_icebeem_exp, run_ivae_exp
 
@@ -15,10 +16,14 @@ def parse_sim():
                         help='Method to employ. Should be TCL, iVAE or ICE-BeeM')
     parser.add_argument('--config', type=str, default='imca.yaml', help='Path to the config file')
     parser.add_argument('--run', type=str, default='run/', help='Path for saving running related data.')
-    parser.add_argument('--nSims', type=int, default=10, help='Number of simulations to run')
+    parser.add_argument('--nSims', type=int, default=3, help='Number of simulations to run')
 
     parser.add_argument('--test', action='store_true', help='Whether to evaluate the models from checkpoints')
     parser.add_argument('--plot', action='store_true')
+
+
+    parser.add_argument('--sweep', type=str, help='sweep ID.')
+
 
     return parser.parse_args()
 
@@ -39,6 +44,27 @@ def make_dirs_simulations(args):
     args.checkpoints = os.path.join(args.run, 'checkpoints', args.method)
     os.makedirs(args.checkpoints, exist_ok=True)
 
+def run_experiments():
+
+    if args.sweep is not None:
+        run = wandb.init()
+        config=wandb.config
+
+    if args.method.lower() == 'tcl':
+        # r = run_tcl_exp(args, new_config)
+        pass
+    elif args.method.lower() == 'ivae':
+        r = run_ivae_exp(args, config)
+    elif args.method.lower() in ['ice-beem', 'icebeem']:
+        r = run_icebeem_exp(args, config)
+    else:
+        raise ValueError('Unsupported method {}'.format(args.method))
+
+    # save results
+    # Each of the runners loops over many seeds, so the saved file contains results from multiple runs
+    fname = os.path.join(args.run, args.method + 'res_' + args.dataset + 'exp_' + str(args.nSims) + '.p')
+    pickle.dump(r, open(fname, "wb"))
+
 
 if __name__ == '__main__':
     args = parse_sim()
@@ -46,28 +72,24 @@ if __name__ == '__main__':
     # make checkpoint and log folders
     make_dirs_simulations(args)
 
+
+
     if not args.plot:
         if args.dataset.lower() in ['tcl', 'imca']:
-            with open(os.path.join('configs', args.config), 'r') as f:
-                config = yaml.load(f,Loader=yaml.FullLoader)
-            new_config = dict2namespace(config)
-            new_config.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-            if args.method.lower() == 'tcl':
-                # r = run_tcl_exp(args, new_config)
-                pass
-            elif args.method.lower() == 'ivae':
-                r = run_ivae_exp(args, new_config)
-            elif args.method.lower() in ['ice-beem', 'icebeem']:
-                r = run_icebeem_exp(args, new_config)
+
+            if args.sweep:
+                # sweep_id = wandb.sweep(config, project="icebeem")
+                config = wandb.config
+                args.nSims = 1
+
+                wandb.agent(args.sweep, function=run_experiments, project="icebeem")
             else:
-                raise ValueError('Unsupported method {}'.format(args.method))
-
-            # save results
-            # Each of the runners loops over many seeds, so the saved file contains results from multiple runs
-            fname = os.path.join(args.run, args.method + 'res_' + args.dataset + 'exp_' + str(args.nSims) + '.p')
-            pickle.dump(r, open(fname, "wb"))
-
+                with open(os.path.join('configs', args.config), 'r') as f:
+                    config = yaml.load(f, Loader=yaml.FullLoader)
+                config = dict2namespace(config)
+                config.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+                run_experiments()
         else:
             raise ValueError('Unsupported dataset {}'.format(args.dataset))
     else:
@@ -105,3 +127,4 @@ if __name__ == '__main__':
         ax1.set_ylim([0, 1])
         plt.savefig('ExpsResults_' + args.dataset + '.pdf', dpi=300)
         print(os.getcwd())
+
