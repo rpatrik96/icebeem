@@ -324,13 +324,15 @@ def gen_IMCA_data(Ncomp, Nlayer, Nsegment, NsegmentObs, BaseCovariance, NonLin='
             from strnn import StrNN
 
             adjacency = torch.tril(
-                torch.ones(Ncomp,
-                            Ncomp)
+                torch.bernoulli(0.75 * torch.ones(Ncomp,
+                                                 Ncomp))
             ).numpy()
 
             # make it a chain
             if chain:
                 adjacency = np.tril(adjacency.T, k=1).T
+
+            print(f"{adjacency=}")
 
             sem = StrNN(
                 nin=Ncomp,
@@ -450,13 +452,15 @@ def gen_TCL_data_ortho(Ncomp, Nlayer, Nsegment, NsegmentObs, source='Laplace', N
             from strnn import StrNN
 
             adjacency = torch.tril(
-                torch.ones(Ncomp,
-                           Ncomp)
+                torch.bernoulli(0.75 *  torch.ones(Ncomp,
+                           Ncomp))
             ).numpy()
 
             # make it a chain
             if chain:
                 adjacency = np.tril(adjacency.T, k=1).T
+
+            print(f"{adjacency=}")
 
             sem = StrNN(
                 nin=Ncomp,
